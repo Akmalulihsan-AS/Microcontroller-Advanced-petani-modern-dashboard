@@ -168,3 +168,62 @@ async function saveSensorData(data) {
 // Ambil histori saat dashboard dibuka
 loadSensorHistory();
 
+const MQTT_BASE = "smartfarm/petani-modern/";
+
+client.on("message", async (topic, message) => {
+    try {
+        const payloadText = message.toString();
+
+        let payload;
+
+        try {
+            payload = JSON.parse(payloadText);
+        } catch {
+            payload = payloadText;
+        }
+
+        // Hanya kirim topic yang dibutuhkan
+        const allowedTopics = [
+            MQTT_BASE + "telemetry",
+            MQTT_BASE + "diagnostics",
+            MQTT_BASE + "status"
+        ];
+
+        if (!allowedTopics.includes(topic)) {
+            return;
+        }
+
+        console.log("MQTT DITERIMA:", topic, payload);
+
+        // Kirim data ke Cloudflare Pages Functions
+        const response = await fetch("/api/sensor", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                topic: topic,
+                payload: payload
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || "Gagal menyimpan data");
+        }
+
+        console.log("BERHASIL DIKIRIM KE API:", result);
+
+        // Perbarui dashboard setelah telemetry tersimpan
+        if (topic === MQTT_BASE + "telemetry") {
+            if (typeof refresh === "function") {
+                await refresh();
+            }
+        }
+
+    } catch (error) {
+        console.error("GAGAL MENGIRIM MQTT KE WEB:", error);
+    }
+});
+
