@@ -119,3 +119,52 @@ function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 function timeAgo(t){const sec=Math.max(0,Math.floor((Date.now()-new Date(t).getTime())/1000));return sec<60?`${sec} dtk lalu`:sec<3600?`${Math.floor(sec/60)} mnt lalu`:`${Math.floor(sec/3600)} jam lalu`}
 function formatUptime(s){const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return `${h}j ${m}m`}
 refresh();setInterval(refresh,2000);
+
+
+async function loadSensorHistory() {
+    try {
+        const response = await fetch("/api/history?limit=50");
+
+        if (!response.ok) {
+            throw new Error("Gagal mengambil histori");
+        }
+
+        const result = await response.json();
+
+        console.log("Histori sensor:", result.data);
+
+        // Data histori siap digunakan
+        // untuk grafik dashboard.
+
+        return result.data;
+
+    } catch (error) {
+        console.error("History error:", error);
+        return [];
+    }
+}
+
+async function saveSensorData(data) {
+    try {
+        const response = await fetch("/api/sensor", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        console.log("Penyimpanan:", result);
+
+        return result;
+
+    } catch (error) {
+        console.error("Gagal menyimpan:", error);
+    }
+}
+
+// Ambil histori saat dashboard dibuka
+loadSensorHistory();
+
