@@ -3,7 +3,7 @@ import {
     getDB,
     json,
     errorResponse
-} from "../../../../_lib/db.js";
+} from "../../../_lib/db.js";
 
 export async function onRequestPost({ request, env, params }) {
     try {
