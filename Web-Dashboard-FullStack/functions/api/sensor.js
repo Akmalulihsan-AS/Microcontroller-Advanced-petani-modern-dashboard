@@ -1,53 +1,94 @@
 
+import {
+    getDB,
+    json,
+    errorResponse
+} from "../_lib/db.js";
+
+import {
+    processTelemetry,
+    processDiagnostics,
+    processStatus
+} from "./_utils.js";
+
 export async function onRequestPost({ request, env }) {
     try {
-        const data = await request.json();
+        const db = getDB(env);
+        const body = await request.json();
 
-        const {
-            node_id,
-            soil_moisture,
-            temperature,
-            light_intensity
-        } = data;
+        const topic = String(body.topic || "");
+        let payload = body.payload;
 
-        if (
-            node_id === undefined ||
-            soil_moisture === undefined ||
-            temperature === undefined ||
-            light_intensity === undefined
-        ) {
-            return Response.json({
-                success: false,
-                message: "Data sensor tidak lengkap"
-            }, { status: 400 });
+        if (!topic) {
+            return errorResponse("Topic MQTT tidak ditemukan", 400);
         }
 
-        const result = await env.DB.prepare(`
-            INSERT INTO sensor_data (
-                node_id,
-                soil_moisture,
-                temperature,
-                light_intensity
-            )
-            VALUES (?, ?, ?, ?)
-        `).bind(
-            node_id,
-            soil_moisture,
-            temperature,
-            light_intensity
-        ).run();
+        if (typeof payload === "string") {
+            try {
+                payload = JSON.parse(payload);
+            } catch {
+                // Payload status bisa berupa teks biasa.
+            }
+        }
 
-        return Response.json({
-            success: true,
-            message: "Data berhasil disimpan",
-            id: result.meta.last_row_id
+        const base = "smartfarm/petani-modern/";
+
+        if (!topic.startsWith(base)) {
+            return errorResponse("Topic tidak sesuai", 400);
+        }
+
+        const type = topic.slice(base.length);
+
+        // TELEMETRY
+
+        if (type === "telemetry") {
+            if (!payload || typeof payload !== "object") {
+                return errorResponse("Format telemetry tidak valid", 400);
+            }
+
+            const reading = await processTelemetry(db, payload);
+
+            return json({
+                ok: true,
+                type: "telemetry",
+                data: reading
+            });
+        }
+
+        // DIAGNOSTICS
+
+        if (type === "diagnostics") {
+            if (!payload || typeof payload !== "object") {
+                return errorResponse("Format diagnostics tidak valid", 400);
+            }
+
+            await processDiagnostics(db, payload);
+
+            return json({
+                ok: true,
+                type: "diagnostics"
+            });
+        }
+
+        // DEVICE STATUS
+
+        if (type === "status") {
+            await processStatus(db, payload);
+
+            return json({
+                ok: true,
+                type: "status",
+                status: payload
+            });
+        }
+
+        return json({
+            ok: true,
+            ignored: true,
+            topic
         });
 
     } catch (error) {
-        return Response.json({
-            success: false,
-            message: error.message
-        }, { status: 500 });
+        return errorResponse(error.message);
     }
 }
-
