@@ -1,10 +1,11 @@
 
 -- =====================================================
--- DATABASE SCHEMA PETANI MODERN
--- Cloudflare D1 (SQLite)
+-- PETANI MODERN
+-- CLOUDFLARE D1 DATABASE SCHEMA
 -- =====================================================
 
--- 1. TABEL DATA SENSOR
+-- TABLE 1: SENSOR READINGS
+
 CREATE TABLE IF NOT EXISTS readings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     timestamp TEXT NOT NULL,
@@ -24,7 +25,8 @@ CREATE INDEX IF NOT EXISTS idx_readings_timestamp
 ON readings(timestamp);
 
 
--- 2. TABEL ALARM
+-- TABLE 2: ALARMS
+
 CREATE TABLE IF NOT EXISTS alarms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     timestamp TEXT NOT NULL,
@@ -38,7 +40,8 @@ CREATE INDEX IF NOT EXISTS idx_alarms_timestamp
 ON alarms(timestamp);
 
 
--- 3. TABEL STATUS PERANGKAT ESP32
+-- TABLE 3: ESP32 DEVICE STATUS
+
 CREATE TABLE IF NOT EXISTS device_state (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     status TEXT DEFAULT 'offline',
