@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Petani Modern | Smart Farming</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="brand-mark">✳</div><div><b>Petani<span>Modern</span></b><small>SMART FARMING SYSTEM</small></div></div>
+    <div class="nav-label">MENU UTAMA</div>
+    <nav>
+      <button class="nav-link active" data-page="home"><span>⌂</span> Dashboard</button>
+      <button class="nav-link" data-page="data"><span>▤</span> Data & Analitik</button>
+      <button class="nav-link" data-page="alarms"><span>⚑</span> Riwayat Alarm <i id="alarmBadge">0</i></button>
+      <button class="nav-link" data-page="device"><span>⌁</span> Perangkat & Jaringan</button>
+    </nav>
+    <div class="sidebar-bottom"><div class="farm-card"><div class="farm-icon">♧</div><b>Smart Farm</b><small>Monitoring tanaman<br>secara real-time</small></div><div class="side-foot">© 2026 Petani Modern</div></div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <button class="mobile-menu" id="menuBtn">☰</button>
+      <div><div class="crumb">SMART FARMING <span>/</span> <b id="crumbName">DASHBOARD</b></div><div class="top-date" id="topDate">Memuat waktu...</div></div>
+      <div class="top-actions"><div class="connection"><span class="dot" id="mqttDot"></span><span id="mqttLabel">Menghubungkan</span></div><button class="theme-btn" id="themeBtn" title="Ganti tema">☾</button><div class="avatar">PM</div></div>
+    </header>
+    <section class="page active" id="page-home">
+      <div class="welcome-row"><div><div class="eyebrow">SISTEM MONITORING TERPADU</div><h1>Selamat datang, <em>Petani Modern.</em></h1><p>Pantau kondisi tanaman dan lingkungan kebunmu dalam satu tempat.</p></div><div class="live-clock"><span class="live-dot"></span> LIVE <b id="clock">--:--:--</b></div></div>
+      <div class="summary-strip"><div><small>STATUS PERANGKAT</small><b><span class="dot" id="homeDeviceDot"></span> <span id="homeDevice">Menunggu data</span></b></div><div><small>PEMBARUAN TERAKHIR</small><b id="lastUpdate">Belum ada data</b></div><div><small>INTERVAL DATA</small><b>2 detik</b></div></div>
+      <div class="section-heading"><div><h2>Ringkasan sensor</h2><p>Nilai terbaru dari empat sensor utama</p></div><span class="updated-label">● REAL-TIME</span></div>
+      <div class="sensor-grid">
+        <article class="sensor-card"><div class="sensor-top"><span class="sensor-icon green">◉</span><span class="sensor-state" id="lightState">INIT</span></div><div class="sensor-name">Intensitas Cahaya</div><div class="gauge-wrap"><canvas id="gaugeLight" width="220" height="130"></canvas><div class="gauge-value"><b id="lightValue">--</b><small>lux</small></div></div><div class="range-line"><span>0 lux</span><span>Rentang tampilan 0–20.000 lux</span><span>20k</span></div></article>
+        <article class="sensor-card"><div class="sensor-top"><span class="sensor-icon blue">◌</span><span class="sensor-state" id="soilState">INIT</span></div><div class="sensor-name">Kelembapan Tanah</div><div class="gauge-wrap"><canvas id="gaugeSoil" width="220" height="130"></canvas><div class="gauge-value"><b id="soilValue">--</b><small>%</small></div></div><div class="range-line"><span>0%</span><span>Rentang 0–100%</span><span>100%</span></div></article>
+        <article class="sensor-card"><div class="sensor-top"><span class="sensor-icon orange">♨</span><span class="sensor-state" id="tempState">INIT</span></div><div class="sensor-name">Suhu Lingkungan</div><div class="gauge-wrap"><canvas id="gaugeTemp" width="220" height="130"></canvas><div class="gauge-value"><b id="tempValue">--</b><small>°C</small></div></div><div class="range-line"><span>0°C</span><span>Rentang 0–60°C</span><span>60°C</span></div></article>
+        <article class="sensor-card"><div class="sensor-top"><span class="sensor-icon purple">↟</span><span class="sensor-state" id="heightState">INIT</span></div><div class="sensor-name">Tinggi Tanaman</div><div class="gauge-wrap"><canvas id="gaugeHeight" width="220" height="130"></canvas><div class="gauge-value"><b id="heightValue">--</b><small>cm</small></div></div><div class="range-line"><span>0 cm</span><span>Rentang 0–100 cm</span><span>100 cm</span></div></article>
+      </div>
+      <div class="bottom-grid"><section class="panel"><div class="panel-heading"><div><h3>Tren kondisi sensor</h3><p>Perubahan nilai terbaru</p></div><select id="homeChartSelect"><option value="soil_moisture">Kelembapan tanah</option><option value="temperature">Suhu</option><option value="light_lux">Cahaya</option><option value="plant_height">Tinggi tanaman</option></select></div><div class="chart-box"><canvas id="homeChart"></canvas></div></section>
+      <section class="panel alarm-highlight"><div class="panel-heading"><div><h3>Alarm terbaru</h3><p>Perlu perhatian dari kebunmu</p></div><button class="text-button" data-goto="alarms">Lihat semua →</button></div><div id="latestAlarmList" class="compact-list"><div class="empty">Belum ada alarm.</div></div></section></div>
+      <div class="footnote">Data sensor diterima melalui MQTT dari ESP32. Batas alarm awal dapat disesuaikan dengan kebutuhan tanaman.</div>
+    </section>
+    <section class="page" id="page-data">
+      <div class="page-title"><div><div class="eyebrow">PUSAT DATA</div><h1>Data & Analitik</h1><p>Rekaman pembacaan sensor dan visualisasi historis.</p></div><a class="primary-btn" href="/api/export.csv">↓ Unduh CSV</a></div>
+      <div class="stat-cards"><div class="stat-card"><small>TOTAL DATA TERSIMPAN</small><b id="totalRows">0</b><span>baris data</span></div><div class="stat-card"><small>RENTANG WAKTU</small><b id="dataRange">—</b><span>rekaman tersedia</span></div><div class="stat-card"><small>STATUS DATABASE</small><b class="success-text">● Aktif</b><span>SQLite lokal</span></div></div>
+      <section class="panel">
+        <div class="panel-heading"><div><h3>Grafik historis sensor</h3><p>Pilih parameter dan periode data yang ingin dianalisis.</p></div>
+          <select id="dataChartSelect"><option value="soil_moisture">Kelembapan tanah (%)</option><option value="temperature">Suhu (°C)</option><option value="light_lux">Cahaya (lux)</option><option value="plant_height">Tinggi tanaman (cm)</option></select>
+        </div>
+        <div class="history-toolbar">
+          <div class="range-picker" role="group" aria-label="Rentang waktu grafik">
+            <button class="range-btn" data-range="1h">1 Jam</button>
+            <button class="range-btn" data-range="6h">6 Jam</button>
+            <button class="range-btn active" data-range="24h">24 Jam</button>
+            <button class="range-btn" data-range="7d">7 Hari</button>
+          </div>
+          <span class="history-count" id="historyCount">Memuat histori...</span>
+        </div>
+        <div class="history-stats">
+          <div class="history-stat"><small>MINIMUM</small><b id="historyMin">—</b></div>
+          <div class="history-stat"><small>MAKSIMUM</small><b id="historyMax">—</b></div>
+          <div class="history-stat"><small>RATA-RATA</small><b id="historyAvg">—</b></div>
+        </div>
+        <div class="large-chart"><canvas id="dataChart"></canvas></div>
+      </section>
+      <section class="panel table-panel"><div class="panel-heading"><div><h3>Database pembacaan sensor</h3><p>Data terbaru ditampilkan di bagian atas.</p></div><button class="outline-btn" id="refreshData">↻ Perbarui</button></div><div class="table-scroll"><table><thead><tr><th>Waktu</th><th>Suhu (°C)</th><th>Kelembapan (%)</th><th>Cahaya (lux)</th><th>Tinggi (cm)</th><th>Status</th></tr></thead><tbody id="readingsTable"><tr><td colspan="6" class="empty">Menunggu data sensor...</td></tr></tbody></table></div></section>
+    </section>
+    <section class="page" id="page-alarms">
+      <div class="page-title"><div><div class="eyebrow">PUSAT NOTIFIKASI</div><h1>Riwayat Alarm</h1><p>Daftar peringatan dan gangguan yang terdeteksi sistem.</p></div></div>
+      <div class="stat-cards alarm-stats"><div class="stat-card"><small>TOTAL PERINGATAN</small><b id="alarmTotal">0</b><span>seluruh riwayat</span></div><div class="stat-card"><small>BELUM DITINJAU</small><b id="alarmPending">0</b><span>perlu pemeriksaan</span></div><div class="stat-card"><small>TINGKAT KRITIS</small><b id="alarmCritical">0</b><span>status danger</span></div></div>
+      <section class="panel"><div class="panel-heading"><div><h3>Log peringatan sistem</h3><p>Alarm dibuat dari status sensor dan batas awal.</p></div><select id="alarmFilter"><option value="all">Semua alarm</option><option value="danger">Kritis</option><option value="warning">Peringatan</option></select></div><div id="alarmFullList" class="alarm-list"><div class="empty">Belum ada riwayat alarm.</div></div></section>
+    </section>
+    <section class="page" id="page-device">
+      <div class="page-title"><div><div class="eyebrow">INFORMASI SISTEM</div><h1>Perangkat & Jaringan</h1><p>Status konektivitas ESP32, broker MQTT, dan kesehatan perangkat.</p></div></div>
+      <div class="device-banner"><div class="device-symbol">⌁</div><div><small>PERANGKAT TERDAFTAR</small><h2>ESP32 · Petani Modern</h2><p id="deviceStatusText">Menunggu koneksi perangkat...</p></div><span class="status-pill offline" id="devicePill">OFFLINE</span></div>
+      <div class="device-grid"><section class="panel"><h3>Koneksi jaringan</h3><div class="detail-list"><div><span>Broker MQTT</span><b>broker.emqx.io:1883</b></div><div><span>Device ID</span><b>petani-modern</b></div><div><span>Topik telemetry</span><b>smartfarm/petani-modern/telemetry</b></div><div><span>Alamat IP ESP32</span><b id="deviceIp">—</b></div><div><span>Kekuatan Wi-Fi (RSSI)</span><b id="deviceRssi">—</b></div><div><span>Koneksi dashboard ↔ broker</span><b id="brokerStatus">Memeriksa...</b></div></div></section>
+      <section class="panel"><h3>Kesehatan perangkat</h3><div class="detail-list"><div><span>Versi firmware</span><b id="firmware">—</b></div><div><span>Uptime ESP32</span><b id="uptime">—</b></div><div><span>Free heap</span><b id="heap">—</b></div><div><span>MQTT reconnect</span><b id="reconnects">—</b></div><div><span>Publish gagal</span><b id="publishFail">—</b></div><div><span>Missed ticks</span><b id="missedTicks">—</b></div><div><span>Max cycle</span><b id="maxCycle">—</b></div></div></section></div>
+      <div class="notice"><b>Catatan koneksi</b><p>Dashboard ini menerima data dari broker publik EMQX. Gunakan DEVICE_ID yang unik dan jangan mengirim data sensitif ke broker publik.</p></div>
+    </section>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="app.js"></script>
+</body></html>
