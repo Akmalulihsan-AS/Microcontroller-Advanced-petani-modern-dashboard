@@ -42,27 +42,25 @@
     </section>
     <section class="page" id="page-data">
       <div class="page-title"><div><div class="eyebrow">PUSAT DATA</div><h1>Data & Analitik</h1><p>Rekaman pembacaan sensor dan visualisasi historis.</p></div><a class="primary-btn" href="/api/export.csv">↓ Unduh CSV</a></div>
-      <div class="stat-cards"><div class="stat-card"><small>TOTAL DATA TERSIMPAN</small><b id="totalRows">0</b><span>baris data</span></div><div class="stat-card"><small>RENTANG WAKTU</small><b id="dataRange">—</b><span>rekaman tersedia</span></div><div class="stat-card"><small>STATUS DATABASE</small><b class="success-text">● Aktif</b><span>SQLite lokal</span></div></div>
+      <div class="stat-cards"><div class="stat-card"><small>TOTAL DATA TERSIMPAN</small><b id="totalRows">0</b><span>baris data</span></div><div class="stat-card"><small>RENTANG WAKTU</small><b id="dataRange">—</b><span>rekaman tersedia</span></div><div class="stat-card"><small>STATUS DATABASE</small><b class="success-text">● Aktif</b><span>Cloudflare D1</span></div></div>
       <section class="panel">
-        <div class="panel-heading"><div><h3>Grafik historis sensor</h3><p>Pilih parameter dan periode data yang ingin dianalisis.</p></div>
-          <select id="dataChartSelect"><option value="soil_moisture">Kelembapan tanah (%)</option><option value="temperature">Suhu (°C)</option><option value="light_lux">Cahaya (lux)</option><option value="plant_height">Tinggi tanaman (cm)</option></select>
-        </div>
-        <div class="history-toolbar">
+        <div class="history-toolbar" style="margin:0">
+          <div><h3>Grafik historis sensor</h3><p style="font-size:11px;color:var(--muted);margin:0">Keempat parameter ditampilkan bersamaan. Pilih periode data.</p></div>
           <div class="range-picker" role="group" aria-label="Rentang waktu grafik">
             <button class="range-btn" data-range="1h">1 Jam</button>
             <button class="range-btn" data-range="6h">6 Jam</button>
             <button class="range-btn active" data-range="24h">24 Jam</button>
             <button class="range-btn" data-range="7d">7 Hari</button>
           </div>
-          <span class="history-count" id="historyCount">Memuat histori...</span>
         </div>
-        <div class="history-stats">
-          <div class="history-stat"><small>MINIMUM</small><b id="historyMin">—</b></div>
-          <div class="history-stat"><small>MAKSIMUM</small><b id="historyMax">—</b></div>
-          <div class="history-stat"><small>RATA-RATA</small><b id="historyAvg">—</b></div>
-        </div>
-        <div class="large-chart"><canvas id="dataChart"></canvas></div>
+        <span class="history-count" id="historyCount">Memuat histori...</span>
       </section>
+      <div class="charts-grid">
+        <section class="panel chart-card"><div class="chart-head"><h3><i style="background:#4d89c8"></i>Kelembapan tanah (%)</h3></div><div class="mini-stats"><div><small>MIN</small><b id="st_soil_moisture_min">—</b></div><div><small>MAKS</small><b id="st_soil_moisture_max">—</b></div><div><small>RATA-RATA</small><b id="st_soil_moisture_avg">—</b></div></div><div class="hist-chart"><canvas id="chartSoil"></canvas></div></section>
+        <section class="panel chart-card"><div class="chart-head"><h3><i style="background:#d98a32"></i>Suhu (°C)</h3></div><div class="mini-stats"><div><small>MIN</small><b id="st_temperature_min">—</b></div><div><small>MAKS</small><b id="st_temperature_max">—</b></div><div><small>RATA-RATA</small><b id="st_temperature_avg">—</b></div></div><div class="hist-chart"><canvas id="chartTemp"></canvas></div></section>
+        <section class="panel chart-card"><div class="chart-head"><h3><i style="background:#269455"></i>Cahaya (lux)</h3></div><div class="mini-stats"><div><small>MIN</small><b id="st_light_lux_min">—</b></div><div><small>MAKS</small><b id="st_light_lux_max">—</b></div><div><small>RATA-RATA</small><b id="st_light_lux_avg">—</b></div></div><div class="hist-chart"><canvas id="chartLight"></canvas></div></section>
+        <section class="panel chart-card"><div class="chart-head"><h3><i style="background:#8b71bd"></i>Tinggi tanaman (cm)</h3></div><div class="mini-stats"><div><small>MIN</small><b id="st_plant_height_min">—</b></div><div><small>MAKS</small><b id="st_plant_height_max">—</b></div><div><small>RATA-RATA</small><b id="st_plant_height_avg">—</b></div></div><div class="hist-chart"><canvas id="chartHeight"></canvas></div></section>
+      </div>
       <section class="panel table-panel"><div class="panel-heading"><div><h3>Database pembacaan sensor</h3><p>Data terbaru ditampilkan di bagian atas.</p></div><button class="outline-btn" id="refreshData">↻ Perbarui</button></div><div class="table-scroll"><table><thead><tr><th>Waktu</th><th>Suhu (°C)</th><th>Kelembapan (%)</th><th>Cahaya (lux)</th><th>Tinggi (cm)</th><th>Status</th></tr></thead><tbody id="readingsTable"><tr><td colspan="6" class="empty">Menunggu data sensor...</td></tr></tbody></table></div></section>
     </section>
     <section class="page" id="page-alarms">
