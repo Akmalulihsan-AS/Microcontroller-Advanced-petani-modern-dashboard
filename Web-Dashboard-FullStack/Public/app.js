@@ -1,3 +1,4 @@
+let mqttConnected=false, liveAt=0;
 const $ = id => document.getElementById(id);
 const state = { readings: [], alarms: [], latest: null, device: null, charts: {}, historyRange: "24h", historyRows: [], historyStats: null };
 const fields = {
@@ -28,7 +29,7 @@ function navigate(page){
 document.querySelectorAll(".nav-link").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.page)));
 document.querySelectorAll("[data-goto]").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.goto)));
 $("menuBtn").addEventListener("click",()=>$("sidebar").classList.toggle("open"));
-$("themeBtn").addEventListener("click",()=>{document.body.classList.toggle("dark");$("themeBtn").textContent=document.body.classList.contains("dark")?"☀":"☾";Object.keys(fields).forEach(k=>{const f=fields[k];drawGauge(f.canvas,state.latest?.[f.key],f.color)});Object.values(state.charts).forEach(c=>c&&c.update())});
+$("themeBtn").addEventListener("click",()=>{document.body.classList.toggle("dark");$("themeBtn").textContent=document.body.classList.contains("dark")?"☀":"☾";Object.keys(fields).forEach(k=>{const f=fields[k];drawGauge(f.canvas,state.latest?.[f.key],f.max,f.color)});Object.values(state.charts).forEach(c=>c&&c.update())});
 function tickClock(){const d=new Date();$("clock").textContent=d.toLocaleTimeString("id-ID",{hour12:false});$("topDate").textContent=d.toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
 setInterval(tickClock,1000);tickClock();
 function chartOptions(){return {responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:"index"},plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:"#8b968d",maxTicksLimit:7,font:{size:9}}},y:{grid:{color:document.body.classList.contains("dark")?"#344139":"#edf1ed"},ticks:{color:"#8b968d",font:{size:9}}}}}}
@@ -75,9 +76,11 @@ document.querySelectorAll(".range-btn").forEach(b=>b.addEventListener("click",()
 async function getJSON(url){const r=await fetch(url);if(!r.ok)throw Error("HTTP "+r.status);return r.json()}
 async function refresh(){
  try{
-  const [latest,readings,alarms,health]=await Promise.all([getJSON("/api/latest"),getJSON("/api/readings?limit=500"),getJSON("/api/alarms?limit=200"),getJSON("/api/health")]);
-  state.latest=latest.data;state.device=latest.device;state.readings=readings;state.alarms=alarms;
-  $("mqttDot").className="dot "+(health.mqtt?"online":"offline");$("mqttLabel").textContent=health.mqtt?"MQTT Terhubung":"MQTT Terputus";
+  const [latest,readings,alarms,health]=await Promise.all([getJSON("/api/latest"),getJSON("/api/readings?limit=500"),getJSON("/api/alarms?limit=200"),getJSON(`/api/health?mqtt=${mqttConnected?1:0}`)]);
+  const liveFresh=Date.now()-liveAt<6000;
+  if(!liveFresh)state.latest=latest.data;
+  state.device=latest.device;state.readings=readings;state.alarms=alarms;
+  updateMqttBadge();
   if(state.latest){
     const r=state.latest;
     setGauge("light",r.light_lux,r.light_status);setGauge("soil",r.soil_moisture,r.soil_status);setGauge("temp",r.temperature,r.temp_status);setGauge("height",r.plant_height,r.height_status);
@@ -121,109 +124,86 @@ function formatUptime(s){const h=Math.floor(s/3600),m=Math.floor(s%3600/60);retu
 refresh();setInterval(refresh,2000);
 
 
-async function loadSensorHistory() {
-    try {
-        const response = await fetch("/api/history?limit=50");
 
-        if (!response.ok) {
-            throw new Error("Gagal mengambil histori");
-        }
-
-        const result = await response.json();
-
-        console.log("Histori sensor:", result.data);
-
-        // Data histori siap digunakan
-        // untuk grafik dashboard.
-
-        return result.data;
-
-    } catch (error) {
-        console.error("History error:", error);
-        return [];
-    }
-}
-
-async function saveSensorData(data) {
-    try {
-        const response = await fetch("/api/sensor", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(data)
-        });
-
-        const result = await response.json();
-
-        console.log("Penyimpanan:", result);
-
-        return result;
-
-    } catch (error) {
-        console.error("Gagal menyimpan:", error);
-    }
-}
-
-// Ambil histori saat dashboard dibuka
-loadSensorHistory();
-
+// =====================================================
+// MQTT (browser <-> broker via WebSocket Secure)
+// Halaman di-host HTTPS, jadi WAJIB wss:// (port 8084), bukan ws://8083 / mqtt://1883.
+// =====================================================
+const MQTT_URL  = "wss://broker.emqx.io:8084/mqtt";
 const MQTT_BASE = "smartfarm/petani-modern/";
+const SAVE_TELEMETRY_EVERY_MS = 15000;   // batasi tulis ke D1 (ESP kirim tiap 2 dtk)
+let lastTelemetrySave = 0;
 
-client.on("message", async (topic, message) => {
-    try {
-        const payloadText = message.toString();
+function updateMqttBadge(){
+  const dot=$("mqttDot"), label=$("mqttLabel");
+  if(dot)dot.className="dot "+(mqttConnected?"online":"offline");
+  if(label)label.textContent=mqttConnected?"MQTT Terhubung":"MQTT Terputus";
+  const b=$("brokerStatus"); if(b)b.textContent=mqttConnected?"Terhubung":"Terputus";
+}
 
-        let payload;
+async function postToApi(topic,payload){
+  try{
+    const r=await fetch("/api/sensor",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({topic,payload})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok||j.ok===false)throw new Error(j.error||("HTTP "+r.status));
+    return j;
+  }catch(e){console.error("Gagal simpan ke API:",topic,e.message)}
+}
 
-        try {
-            payload = JSON.parse(payloadText);
-        } catch {
-            payload = payloadText;
-        }
+function applyLiveTelemetry(d){
+  const st=d.sensor_status||{};
+  state.latest={
+    timestamp:new Date().toISOString(),
+    temperature:d.temperature_c, soil_moisture:d.soil_moisture_pct,
+    light_lux:d.light_lux, plant_height:d.plant_height_cm,
+    temp_status:st.temperature, soil_status:st.soil, light_status:st.light, height_status:st.height
+  };
+  liveAt=Date.now();
+  const r=state.latest;
+  setGauge("light",r.light_lux,r.light_status);setGauge("soil",r.soil_moisture,r.soil_status);
+  setGauge("temp",r.temperature,r.temp_status);setGauge("height",r.plant_height,r.height_status);
+  $("lastUpdate").textContent=new Date().toLocaleTimeString("id-ID");
+}
 
-        // Hanya kirim topic yang dibutuhkan
-        const allowedTopics = [
-            MQTT_BASE + "telemetry",
-            MQTT_BASE + "diagnostics",
-            MQTT_BASE + "status"
-        ];
-
-        if (!allowedTopics.includes(topic)) {
-            return;
-        }
-
-        console.log("MQTT DITERIMA:", topic, payload);
-
-        // Kirim data ke Cloudflare Pages Functions
-        const response = await fetch("/api/sensor", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                topic: topic,
-                payload: payload
-            })
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.error || "Gagal menyimpan data");
-        }
-
-        console.log("BERHASIL DIKIRIM KE API:", result);
-
-        // Perbarui dashboard setelah telemetry tersimpan
-        if (topic === MQTT_BASE + "telemetry") {
-            if (typeof refresh === "function") {
-                await refresh();
-            }
-        }
-
-    } catch (error) {
-        console.error("GAGAL MENGIRIM MQTT KE WEB:", error);
-    }
+const client=mqtt.connect(MQTT_URL,{
+  clientId:"web_"+Math.random().toString(16).slice(2,10),
+  clean:true, connectTimeout:10000, reconnectPeriod:3000, keepalive:30
 });
 
+client.on("connect",()=>{
+  mqttConnected=true;updateMqttBadge();
+  client.subscribe([MQTT_BASE+"telemetry",MQTT_BASE+"diagnostics",MQTT_BASE+"status"],{qos:0},
+    err=>{if(err)console.error("Subscribe gagal:",err)});
+  console.log("MQTT terhubung, subscribe",MQTT_BASE+"*");
+});
+["close","offline","error"].forEach(ev=>client.on(ev,e=>{
+  mqttConnected=false;updateMqttBadge();if(e)console.error("MQTT",ev,e.message||e);
+}));
+
+client.on("message",async(topic,message)=>{
+  const text=message.toString();
+  let payload=text;
+  try{payload=JSON.parse(text)}catch{}
+  const type=topic.slice(MQTT_BASE.length);
+  console.log("MQTT DITERIMA:",topic,payload);
+
+  if(type==="telemetry"&&payload&&typeof payload==="object"){
+    applyLiveTelemetry(payload);                       // tampil langsung tiap 2 dtk
+    const now=Date.now();
+    if(now-lastTelemetrySave>=SAVE_TELEMETRY_EVERY_MS){ // simpan ke D1 berkala
+      lastTelemetrySave=now;
+      await postToApi(topic,payload);
+    }
+  }else if(type==="diagnostics"&&payload&&typeof payload==="object"){
+    state.device={...(state.device||{}),status:payload.state||"online",ip:payload.ip,rssi:payload.wifi_rssi_dbm,
+      firmware:payload.firmware,uptime_s:payload.uptime_s,free_heap:payload.free_heap,
+      mqtt_reconnects:payload.mqtt_reconnects,mqtt_publish_fail:payload.mqtt_publish_fail,
+      missed_ticks:payload.missed_ticks,max_cycle_us:payload.max_cycle_us};
+    renderDevice({mqtt:mqttConnected});
+    await postToApi(topic,payload);
+  }else if(type==="status"){
+    state.device={...(state.device||{}),status:String(text).trim().toLowerCase()==="online"?"online":"offline"};
+    renderDevice({mqtt:mqttConnected});
+    await postToApi(topic,String(text).trim());
+  }
+});
