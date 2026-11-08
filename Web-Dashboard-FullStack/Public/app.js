@@ -47,31 +47,39 @@ function showStat(value,key){
   const d=key==="light_lux"?0:1;
   return `${Number(value).toFixed(d)} ${sensorUnit(key)}`;
 }
+const HIST=[
+  {id:"chartSoil",  key:"soil_moisture", color:"#4d89c8"},
+  {id:"chartTemp",  key:"temperature",   color:"#d98a32"},
+  {id:"chartLight", key:"light_lux",     color:"#269455"},
+  {id:"chartHeight",key:"plant_height",  color:"#8b71bd"}
+];
 function renderHistoryStats(){
-  const key=$("dataChartSelect").value, s=state.historyStats||{};
-  $("historyMin").textContent=showStat(s[`${key}_min`],key);
-  $("historyMax").textContent=showStat(s[`${key}_max`],key);
-  $("historyAvg").textContent=showStat(s[`${key}_avg`],key);
-  $("historyCount").textContent=`${Number(s.total||0).toLocaleString("id-ID")} rekaman dalam ${({ "1h":"1 jam","6h":"6 jam","24h":"24 jam","7d":"7 hari" })[state.historyRange]}`;
+  const s=state.historyStats||{};
+  HIST.forEach(({key})=>{
+    $(`st_${key}_min`).textContent=showStat(s[`${key}_min`],key);
+    $(`st_${key}_max`).textContent=showStat(s[`${key}_max`],key);
+    $(`st_${key}_avg`).textContent=showStat(s[`${key}_avg`],key);
+  });
+  $("historyCount").textContent=`${Number(state.historyTotal||0).toLocaleString("id-ID")} rekaman dalam ${({ "1h":"1 jam","6h":"6 jam","24h":"24 jam","7d":"7 hari" })[state.historyRange]}`;
 }
 function makeHistoryChart(){
-  const el=$("dataChart");if(!el||!window.Chart)return;
-  if(state.charts.dataChart)state.charts.dataChart.destroy();
-  const key=$("dataChartSelect").value, rows=state.historyRows||[];
-  state.charts.dataChart=new Chart(el,{type:"line",data:{
-    labels:rows.map(r=>new Date(r.timestamp).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})),
-    datasets:[{label:sensorLabel(key),data:rows.map(r=>r[key]),borderColor:"#269455",backgroundColor:"rgba(38,148,85,.10)",fill:true,tension:.28,pointRadius:0,spanGaps:true,borderWidth:2}]
-  },options:chartOptions()});
+  if(!window.Chart)return;
+  const rows=state.historyRows||[];
+  const labels=rows.map(r=>new Date(r.timestamp).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}));
+  HIST.forEach(({id,key,color})=>{
+    const el=$(id);if(!el)return;
+    if(state.charts[id])state.charts[id].destroy();
+    state.charts[id]=new Chart(el,{type:"line",data:{labels,datasets:[{label:sensorLabel(key),data:rows.map(r=>r[key]),borderColor:color,backgroundColor:color+"1a",fill:true,tension:.28,pointRadius:0,spanGaps:true,borderWidth:2}]},options:chartOptions()});
+  });
   renderHistoryStats();
 }
 async function loadHistory(){
   const result=await getJSON(`/api/history?range=${state.historyRange}`);
-  state.historyRows=result.rows||[];state.historyStats=result.stats||{};
+  state.historyRows=result.rows||[];state.historyStats=result.stats||{};state.historyTotal=result.total||0;
   makeHistoryChart();
 }
 function updateCharts(){makeChart("homeChart",$("homeChartSelect").value);if($("page-data").classList.contains("active"))loadHistory().catch(console.error)}
 $("homeChartSelect").addEventListener("change",()=>makeChart("homeChart",$("homeChartSelect").value));
-$("dataChartSelect").addEventListener("change",()=>{if($("page-data").classList.contains("active"))makeHistoryChart();});
 document.querySelectorAll(".range-btn").forEach(b=>b.addEventListener("click",()=>{state.historyRange=b.dataset.range;document.querySelectorAll(".range-btn").forEach(x=>x.classList.toggle("active",x===b));loadHistory().catch(console.error)}));
 async function getJSON(url){const r=await fetch(url);if(!r.ok)throw Error("HTTP "+r.status);return r.json()}
 async function refresh(){
