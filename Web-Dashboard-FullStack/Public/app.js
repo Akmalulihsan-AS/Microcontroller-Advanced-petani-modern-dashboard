@@ -24,7 +24,7 @@ function navigate(page){
   document.querySelectorAll(".nav-link").forEach(b=>b.classList.toggle("active",b.dataset.page===page));
   const names={home:"DASHBOARD",data:"DATA & ANALITIK",alarms:"RIWAYAT ALARM",device:"PERANGKAT & JARINGAN"};
   $("crumbName").textContent=names[page];$("sidebar").classList.remove("open");
-  if(page==="data")renderData(); if(page==="alarms")renderAlarms();
+  if(page==="data"){renderData();loadHistory().catch(console.error)} if(page==="alarms")renderAlarms();
 }
 document.querySelectorAll(".nav-link").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.page)));
 document.querySelectorAll("[data-goto]").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.goto)));
@@ -68,8 +68,10 @@ function makeHistoryChart(){
   const labels=rows.map(r=>new Date(r.timestamp).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}));
   HIST.forEach(({id,key,color})=>{
     const el=$(id);if(!el)return;
-    if(state.charts[id])state.charts[id].destroy();
-    state.charts[id]=new Chart(el,{type:"line",data:{labels,datasets:[{label:sensorLabel(key),data:rows.map(r=>r[key]),borderColor:color,backgroundColor:color+"1a",fill:true,tension:.28,pointRadius:0,spanGaps:true,borderWidth:2}]},options:chartOptions()});
+    const values=rows.map(r=>r[key]);
+    const ch=state.charts[id];
+    if(ch){ch.data.labels=labels;ch.data.datasets[0].data=values;ch.update("none");return}
+    state.charts[id]=new Chart(el,{type:"line",data:{labels,datasets:[{label:sensorLabel(key),data:values,borderColor:color,backgroundColor:color+"1a",fill:true,tension:.28,pointRadius:0,spanGaps:true,borderWidth:2}]},options:{...chartOptions(),animation:false}});
   });
   renderHistoryStats();
 }
@@ -116,7 +118,6 @@ function renderData(){
  const rows=state.readings.slice().reverse();$("totalRows").textContent=state.readings.length.toLocaleString("id-ID");
  $("dataRange").textContent=rows.length?new Date(rows[rows.length-1].timestamp).toLocaleDateString("id-ID"):"—";
  $("readingsTable").innerHTML=rows.slice(0,100).map(r=>`<tr><td>${new Date(r.timestamp).toLocaleString("id-ID")}</td><td>${fmt(r.temperature)}</td><td>${fmt(r.soil_moisture)}</td><td>${fmt(r.light_lux,0)}</td><td>${fmt(r.plant_height)}</td><td><span class="table-status">${[r.temp_status,r.soil_status,r.light_status,r.height_status].every(s=>s==="OK")?"NORMAL":"PERIKSA"}</span></td></tr>`).join("")||'<tr><td colspan="6" class="empty">Belum ada data sensor.</td></tr>';
- loadHistory().catch(console.error);
 }
 $("refreshData").addEventListener("click",refresh);
 $("alarmFilter").addEventListener("change",renderAlarms);
@@ -130,6 +131,7 @@ function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 function timeAgo(t){const sec=Math.max(0,Math.floor((Date.now()-new Date(t).getTime())/1000));return sec<60?`${sec} dtk lalu`:sec<3600?`${Math.floor(sec/60)} mnt lalu`:`${Math.floor(sec/3600)} jam lalu`}
 function formatUptime(s){const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return `${h}j ${m}m`}
 refresh();setInterval(refresh,2000);
+setInterval(()=>{if($("page-data").classList.contains("active"))loadHistory().catch(console.error)},30000);
 
 
 
