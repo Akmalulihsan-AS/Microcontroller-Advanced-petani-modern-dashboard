@@ -14,6 +14,7 @@ export async function onRequestGet({ request, env }) {
 
         const durations = {
             "1h": 60 * 60 * 1000,
+            "6h": 6 * 60 * 60 * 1000,
             "24h": 24 * 60 * 60 * 1000,
             "7d": 7 * 24 * 60 * 60 * 1000,
             "30d": 30 * 24 * 60 * 60 * 1000
@@ -50,17 +51,17 @@ export async function onRequestGet({ request, env }) {
                 MIN(temperature) AS temperature_min,
                 MAX(temperature) AS temperature_max,
 
-                AVG(soil_moisture) AS soil_avg,
-                MIN(soil_moisture) AS soil_min,
-                MAX(soil_moisture) AS soil_max,
+                AVG(soil_moisture) AS soil_moisture_avg,
+                MIN(soil_moisture) AS soil_moisture_min,
+                MAX(soil_moisture) AS soil_moisture_max,
 
-                AVG(light_lux) AS light_avg,
-                MIN(light_lux) AS light_min,
-                MAX(light_lux) AS light_max,
+                AVG(light_lux) AS light_lux_avg,
+                MIN(light_lux) AS light_lux_min,
+                MAX(light_lux) AS light_lux_max,
 
-                AVG(plant_height) AS height_avg,
-                MIN(plant_height) AS height_min,
-                MAX(plant_height) AS height_max
+                AVG(plant_height) AS plant_height_avg,
+                MIN(plant_height) AS plant_height_min,
+                MAX(plant_height) AS plant_height_max
             FROM readings
             ${condition}
         `;
