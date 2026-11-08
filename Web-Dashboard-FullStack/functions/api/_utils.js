@@ -1,6 +1,13 @@
 
 import { nowISO } from "../_lib/db.js";
 
+// null / NaN / "" -> null (jangan diubah jadi 0, supaya sensor error tidak tampak "0")
+function num(v) {
+    if (v === null || v === undefined || v === "") return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+}
+
 export function normalizeTelemetry(data) {
     const sensorStatus = data.sensor_status || {};
 
@@ -8,22 +15,22 @@ export function normalizeTelemetry(data) {
         timestamp: nowISO(),
 
         temperature:
-            Number(data.temperature_c ?? data.temperature ?? 0),
+            num(data.temperature_c ?? data.temperature),
 
         soil_moisture:
-            Number(data.soil_moisture_pct ?? data.soil_moisture ?? 0),
+            num(data.soil_moisture_pct ?? data.soil_moisture),
 
         light_lux:
-            Number(data.light_lux ?? 0),
+            num(data.light_lux),
 
         plant_height:
-            Number(data.plant_height_cm ?? data.plant_height ?? 0),
+            num(data.plant_height_cm ?? data.plant_height),
 
         distance_cm:
-            Number(data.distance_cm ?? 0),
+            num(data.distance_cm),
 
         soil_adc:
-            Number(data.soil_adc ?? 0),
+            num(data.soil_adc),
 
         temp_status:
             sensorStatus.temperature ?? data.temp_status ?? "UNKNOWN",
@@ -138,7 +145,7 @@ export async function processTelemetry(db, data) {
 
     // TEMPERATURE WARNING
 
-    if (reading.temperature > 35) {
+    if (reading.temperature !== null && reading.temperature > 35) {
         await createAlarm(
             db,
             "warning",
@@ -149,7 +156,7 @@ export async function processTelemetry(db, data) {
 
     // SOIL MOISTURE WARNING
 
-    if (reading.soil_moisture < 30) {
+    if (reading.soil_moisture !== null && reading.soil_moisture < 30) {
         await createAlarm(
             db,
             "warning",
@@ -168,6 +175,7 @@ export async function processDiagnostics(db, data) {
             status = 'online',
             last_seen = ?,
             ip = ?,
+            rssi = ?,
             firmware = ?,
             uptime_s = ?,
             free_heap = ?,
@@ -179,6 +187,7 @@ export async function processDiagnostics(db, data) {
     `).bind(
         nowISO(),
         data.ip ?? null,
+        data.wifi_rssi_dbm ?? null,
         data.firmware ?? null,
         data.uptime_s ?? null,
         data.free_heap ?? null,
