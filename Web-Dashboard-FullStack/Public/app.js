@@ -60,7 +60,7 @@ function renderHistoryStats(){
     $(`st_${key}_max`).textContent=showStat(s[`${key}_max`],key);
     $(`st_${key}_avg`).textContent=showStat(s[`${key}_avg`],key);
   });
-  $("historyCount").textContent=`${Number(state.historyTotal||0).toLocaleString("id-ID")} rekaman dalam ${({ "1h":"1 jam","6h":"6 jam","24h":"24 jam","7d":"7 hari" })[state.historyRange]}`;
+  $("historyCount").textContent=`${Number(state.historyTotal||0).toLocaleString("id-ID")} rekaman dalam ${({ "1h":"1 jam","6h":"6 jam","12h":"12 jam","24h":"1 hari","3d":"3 hari","7d":"7 hari" })[state.historyRange]}`;
 }
 function makeHistoryChart(){
   if(!window.Chart)return;
