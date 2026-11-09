@@ -1,4 +1,3 @@
-
 import {
     getDB,
     json,
@@ -15,7 +14,9 @@ export async function onRequestGet({ request, env }) {
         const durations = {
             "1h": 60 * 60 * 1000,
             "6h": 6 * 60 * 60 * 1000,
+            "12h": 12 * 60 * 60 * 1000,
             "24h": 24 * 60 * 60 * 1000,
+            "3d": 3 * 24 * 60 * 60 * 1000,
             "7d": 7 * 24 * 60 * 60 * 1000,
             "30d": 30 * 24 * 60 * 60 * 1000
         };
@@ -77,19 +78,31 @@ export async function onRequestGet({ request, env }) {
         total = countResult?.total || 0;
         stats = statsResult || {};
 
+        // Rata-ratakan data per interval waktu supaya seluruh rentang tampil
+        // (maks ~240 titik per grafik), bukan hanya N baris terakhir.
+        const spanSec = durations[range]
+            ? durations[range] / 1000
+            : 30 * 24 * 60 * 60;
+        const bucketSec = Math.max(1, Math.ceil(spanSec / 240));
+
         const dataQuery = `
-            SELECT *
+            SELECT
+                MIN(timestamp)      AS timestamp,
+                AVG(temperature)    AS temperature,
+                AVG(soil_moisture)  AS soil_moisture,
+                AVG(light_lux)      AS light_lux,
+                AVG(plant_height)   AS plant_height
             FROM readings
             ${condition}
-            ORDER BY id DESC
-            LIMIT 1200
+            GROUP BY CAST(strftime('%s', timestamp) AS INTEGER) / ${bucketSec}
+            ORDER BY MIN(timestamp) ASC
         `;
 
         const dataResult = since
             ? await db.prepare(dataQuery).bind(since).all()
             : await db.prepare(dataQuery).all();
 
-        rows = (dataResult.results || []).reverse();
+        rows = dataResult.results || [];
 
         return json({
             ok: true,
